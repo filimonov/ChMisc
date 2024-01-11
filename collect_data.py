@@ -6,6 +6,9 @@ from chmisc.xml2csv import XMLConfigToCSVConverter
 from os.path import exists, dirname, join as path_join
 from os import makedirs
 from shutil import rmtree
+import subprocess
+
+
 
 
 logging.basicConfig(
@@ -43,9 +46,33 @@ table_names = (
     'errors'
 )
 
+
+def podman_prune():
+    """
+    Executes the 'podman system prune -a -f' command and prints its output and errors.
+    """
+    # Define the command to be executed
+    command = ["podman", "system", "prune", "-a", "-f"]
+
+    # Execute the command
+    logger.info(f'Executing command: {command}')
+    process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    # Capture the output and error (if any)
+    output = process.stdout.decode()
+    error = process.stderr.decode()
+
+    # Print the output and error
+    logger.info(f'Output: {output}')
+    if error:
+        logger.error(f'Error: {error}')
+
+
+
 image = tutils.images[0]
 
 for image in tutils.images:
+    podman_prune()
     c_path = path_join(output_dir, image.split(':')[1])
     if exists(c_path):
         logger.info(f'Skipping {image} - output directory exists')
@@ -85,7 +112,7 @@ for image in tutils.images:
                 logger.info(f'Collecting table system.{table} data for {image}')
                 status, data = ch.query(f'SELECT version() AS ch_version, *, rowNumberInAllBlocks() as order FROM system.{table} FORMAT TabSeparatedWithNamesAndTypes', extra_params=extra_params)
                 if status:
-                    out_file_name = path_join(c_path, f'system_{table}.csv')
+                    out_file_name = path_join(c_path, f'system_{table}.tsv')
                     with open(out_file_name, 'w') as f:
                         f.writelines(data)
                 else:

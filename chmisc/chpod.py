@@ -6,6 +6,7 @@ import tarfile
 import os
 from time import sleep
 from pkg_resources import packaging
+import subprocess
 
 
 
@@ -25,13 +26,31 @@ class ChPod(object):
         self.__start_container()
 
 
+    def __podman_prune(self):
+        """
+        Executes the 'podman system prune -a -f' command and prints its output and errors.
+        """
+        command = ["podman", "system", "prune", "-a", "-f"]
+
+        self.logger.info(f'Executing command: {command}')
+        process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        output = process.stdout.decode()
+        error = process.stderr.decode()
+
+        logger.info(f'Output: {output}')
+        if error:
+            logger.error(f'Error: {error}')
+
+
     def __del__(self):
         self.logger.debug('Destroying instance ' + self.__repr__())
         if self.container is not None:
-            self.container.stop()
+            self.container.remove(force=True)
         self.logger.debug('Removing image ' + self.image)
         if self.podman.images.exists(self.image):
-            client.images.remove(self.image)
+            self.podman.images.remove(self.image)
+        self.__podman_prune()
 
 
     def __get_clickhouse_http_url(self):
